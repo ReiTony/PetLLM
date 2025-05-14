@@ -1,0 +1,42 @@
+import requests
+from decouple import config
+
+OPENROUTER_API_KEY = config("PetPalKey")
+SITE_URL = config("SITE_URL", default="http://localhost")        # optional
+SITE_TITLE = config("SITE_TITLE", default="PetPal Chatbot")      # optional
+
+def generate_response(prompt: str, use_mock=True) -> str:
+    if use_mock:
+        return f"*Wags tail happily* You said: '{prompt[-50:]}' 🐾"
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": SITE_URL,
+        "X-Title": SITE_TITLE
+    }
+
+    payload = {
+        "model": "mistralai/mistral-small-3.1-24b-instruct:free", 
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    }
+
+    try:
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json=payload
+        )
+
+        if response.status_code == 200:
+            return response.json()["choices"][0]["message"]["content"]
+        else:
+            return f"[ERROR]: {response.text}"
+
+    except Exception as e:
+        return f"[ERROR]: OpenRouter API failed — {str(e)}"

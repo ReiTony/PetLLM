@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.pyc
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+env/
+venv/
+ENV/
+env.bak/
+*.env
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Others
+*.log
+*.sqlite3
+.idea/
