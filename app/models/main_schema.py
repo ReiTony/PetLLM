@@ -1,6 +1,6 @@
 from pydantic import BaseModel
-from fastapi import Form
-from typing import Literal
+from fastapi import Form, Request
+from typing import Literal, List
 
 # User Profile Form
 def get_user_profile_form(
@@ -31,15 +31,30 @@ def get_pet_profile_form(
         "pet_name": pet_name,
         "pet_type": pet_type,
         "breed": breed,
-        "age_group": pet_age_group
+        "age_group": pet_age_group,
+        "education_level": 1,
+        "known_commands": [],
+        "knowledge_base": {
+            "owner_name": user_id
+        }
     }
-
 # Chat Request 
 def get_chat_form(
     user_id: str = Form(...),
+    pet_id: str = Form(...),
     message: str = Form(...)
 ):
     return {
         "user_id": user_id,
+        "pet_id": pet_id,
         "message": message
     }
+
+class ChatFeatures(BaseModel):
+    motions: List[str]
+    sounds: List[str]
+    emotions: List[str]
+
+class ChatResponse(BaseModel):
+    response: str
+    features: ChatFeatures
