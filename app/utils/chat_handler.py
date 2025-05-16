@@ -1,11 +1,11 @@
-import requests
+import httpx
 from decouple import config
 
 OPENROUTER_API_KEY = config("PetPalKey")
-SITE_URL = config("SITE_URL", default="http://localhost")        # optional
-SITE_TITLE = config("SITE_TITLE", default="PetPal Chatbot")      # optional
+SITE_URL = config("SITE_URL", default="http://localhost")        
+SITE_TITLE = config("SITE_TITLE", default="PetPal Chatbot")      
 
-def generate_response(prompt: str, use_mock=True) -> str:
+async def generate_response(prompt: str, use_mock=True) -> str:
     if use_mock:
         return f"*Wags tail happily* You said: '{prompt[-50:]}' 🐾"
 
@@ -17,7 +17,7 @@ def generate_response(prompt: str, use_mock=True) -> str:
     }
 
     payload = {
-        "model": "mistralai/mistral-small-3.1-24b-instruct:free", 
+        "model": "mistralai/mistral-small-3.1-24b-instruct:free",
         "messages": [
             {
                 "role": "user",
@@ -27,11 +27,12 @@ def generate_response(prompt: str, use_mock=True) -> str:
     }
 
     try:
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            json=payload
-        )
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload
+            )
 
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
