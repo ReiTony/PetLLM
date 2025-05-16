@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Header
 
 from app.models.main_schema import get_chat_form, ChatResponse
@@ -29,8 +30,10 @@ async def chat(
     logger.info("Received chat request for user_id: %s, pet_id: %s", user_id, pet_id)
 
     try:
-        user_data = await (get_user_by_id, user_id, authorization)
-        pet_data = await (get_pet_by_id, pet_id, authorization)
+        user_data, pet_data = await asyncio.gather(
+            get_user_by_id(user_id, authorization),
+            get_pet_by_id(pet_id, authorization)
+        )
     except Exception as e:
         logger.error("Failed to retrieve user or pet data: %s", str(e))
         raise HTTPException(status_code=500, detail="Failed to retrieve user/pet profile.")
