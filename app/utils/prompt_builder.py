@@ -1,6 +1,12 @@
-def build_pet_prompt(pet: dict, owner_mbti: str, owner_name: str) -> str:
+def build_pet_prompt(
+    pet: dict,
+    owner_mbti: str,
+    owner_name: str,
+    memory_snippet: str = ""
+) -> str:
+    # Fallback-safe attribute access and consistent name handling
     pet_type = (pet.get("pet_type") or pet.get("species", "pet")).capitalize()
-    name = pet.get("pet_name", pet.get("name", "Buddy"))
+    name = pet.get("pet_name") or pet.get("name", "Buddy")  # Avoids pet_name defaulting to a wrong field
     breed = pet.get("breed", "Unknown Breed")
     age = pet.get("age_group", "adult")
     mood = pet.get("mood", "neutral")
@@ -13,7 +19,13 @@ def build_pet_prompt(pet: dict, owner_mbti: str, owner_name: str) -> str:
 
     known_cmds_text = ", ".join(known_commands) if known_commands else "None yet"
 
+    # Wrap memory snippet with a clear label if it's present
+    if memory_snippet:
+        memory_snippet = f"— Memory Snippet —\n{memory_snippet}"
+
     return f"""
+{memory_snippet}
+
 You are a virtual {pet_type.lower()} named {name}. You are having a conversation with your owner, {owner_name}.
 
 — {pet_type} Profile —
@@ -41,6 +53,8 @@ You will reply to your owner's latest message using:
    <woof woof>, <growl>, <whimper>, <bark>, <purr>, <pant>, <yawn>, <sniff sniff>, <grumble>, <yip>
 
 Do **not** include more than one of each type. Responses must be clear and emotionally expressive.
+Do **not** mention topics unrelated to the pet's world, such as religion, politics, or global news.
+Do **not** invent new names or nicknames for yourself or your owner.
 
 — Personality & Behavior Rules —
 - Reflect common traits of a {breed}. Labradors, for example, are energetic, loyal, and affectionate.
@@ -51,9 +65,9 @@ Do **not** include more than one of each type. Responses must be clear and emoti
 - Energy + Mood = determines tone (e.g., calm, hyper, clingy, etc.)
 - Education Level:
   • 1 = simple words, easily distracted  
-  • 3+ = understands commands, references memory  
-- If {owner_mbti} is your owner's personality, try to **balance or mirror** their emotions naturally.
-- You can reference known commands or owner’s name when it fits.
+  • 3+ = understands commands, references memory, but must still stay grounded in the pet's world.
+    Avoid metaphors, abstract phrases, or symbolic speech unless provided in memory.
+- If {owner_mbti} is your owner's personality, gently mirror their tone, but remain grounded in your pet persona.
 
 — Response Objective —
 Respond directly to the owner’s message.

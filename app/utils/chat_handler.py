@@ -23,7 +23,9 @@ async def generate_response(prompt: str, use_mock=True) -> str:
                 "role": "user",
                 "content": prompt
             }
-        ]
+        ],
+        "temperature": 0.6,
+        "top_p": 0.9
     }
 
     try:

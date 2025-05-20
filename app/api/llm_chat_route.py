@@ -30,34 +30,53 @@ async def chat(
     pet_id = form.get("pet_id")
     message = form.get("message")
 
-    logger.info("Received chat request for user_id: %s, pet_id: %s", user_id, pet_id)
+    logger.info("\n--- Chat Request Received ---\nUser ID: %s | Pet ID: %s", user_id, pet_id)
 
     try:
         user_data, pet_data = await asyncio.gather(
-            get_user_by_id(user_id, authorization), get_pet_by_id(pet_id, authorization)
+            get_user_by_id(user_id, authorization),
+            get_pet_by_id(pet_id, authorization)
         )
     except Exception as e:
         logger.error("Failed to retrieve user or pet data: %s", str(e))
-        raise HTTPException(
-            status_code=500, detail="Failed to retrieve user/pet profile."
-        )
+        raise HTTPException(status_code=500, detail="Failed to retrieve user/pet profile.")
 
     if not user_data or "mbti" not in user_data or "first_name" not in user_data:
-        raise HTTPException(
-            status_code=422, detail="User profile missing MBTI or first name."
-        )
+        raise HTTPException(status_code=422, detail="User profile missing MBTI or first name.")
     if not pet_data:
         raise HTTPException(status_code=404, detail="Pet profile not found.")
 
     mbti = user_data["mbti"]
     owner_name = user_data["first_name"]
 
-    logger.info("MBTI: %s | Owner: %s", mbti, owner_name)
-    logger.info("Pet data: %s", pet_data)
+    logger.info("✔ User Profile — MBTI: %s | Name: %s", mbti, owner_name)
+    logger.info("✔ Pet Profile — Species: %s | Breed: %s | Name: %s", pet_data.get("species"), pet_data.get("breed"), pet_data.get("name"))
 
-    prompt = build_pet_prompt(pet_data, mbti, owner_name)
+    recent_chats_cursor = chats_collection.find({
+        "user_id": user_id,
+        "pet_id": pet_id
+    }).sort("timestamp", -1).limit(5)
+
+    recent_chats = await recent_chats_cursor.to_list(length=5)
+
+    if recent_chats:
+        formatted_chats = "\n\n".join(
+            f"[{i}] User: {chat['user_message']}\n    Pet: {chat['pet_response']}"
+            for i, chat in enumerate(reversed(recent_chats), 1)
+        )
+        logger.info("\n===== MEMORY SNIPPET START =====\n%s\n===== 🧠 MEMORY SNIPPET END =====", formatted_chats)
+    else:
+        logger.info("ℹNo recent memory found for user/pet.")
+
+    memory_snippet = "\n".join(
+        f"User: {chat['user_message']}\nPet: {chat['pet_response']}"
+        for chat in reversed(recent_chats)
+    )
+
+    prompt = build_pet_prompt(pet_data, mbti, owner_name, memory_snippet=memory_snippet)
     prompt += f"\n\nUser: {message}\n{pet_data.get('species', 'pet').capitalize()}:"
-    logger.debug("Prompt sent to model:\n%s", prompt)
+
+    logger.debug("\n--- Prompt Sent to LLM ---\n%s", prompt)
 
     response = await generate_response(prompt, use_mock=False)
 
@@ -65,17 +84,17 @@ async def chat(
         logger.warning("Model returned error: %s", response)
         raise HTTPException(status_code=502, detail="AI response unavailable")
 
-    logger.info("Model response: %s", response.strip())
+    logger.info("Model Response:\n%s", response.strip())
     features = extract_response_features(response)
 
-    await chats_collection.insert_one(
-        {
-            "user_id": user_id,
-            "pet_id": pet_id,
-            "timestamp": datetime.utcnow(),
-            "user_message": message,
-            "pet_response": response.strip(),
-        }
-    )
+    await chats_collection.insert_one({
+        "user_id": user_id,
+        "pet_id": pet_id,
+        "timestamp": datetime.utcnow(),
+        "user_message": message,
+        "pet_response": response.strip()
+    })
+
+    logger.info("💾 Chat successfully stored in MongoDB")
 
     return {"response": response.strip(), "features": features}
