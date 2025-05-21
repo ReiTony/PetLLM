@@ -64,7 +64,7 @@ async def chat(
     # Step 2: Translate to English if necessary
     translated_message = translate_to_english(message, user_lang)
     if translated_message != message:
-        logger.info("🔁 Translated message to English: %s", translated_message)
+        logger.info("Translated message to English: %s", translated_message)
 
     # Short-term memory
     recent_chats_cursor = chats_collection.find({
