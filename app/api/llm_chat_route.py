@@ -9,6 +9,11 @@ from app.utils.chat_handler import generate_response
 from app.utils.php_service import get_user_by_id, get_pet_by_id
 from app.utils.extract_response import extract_response_features
 from app.db.connection import chats_collection
+from app.utils.language_translator import (
+    detect_language,
+    translate_to_english,
+    translate_to_user_language
+)
 
 router = APIRouter()
 
@@ -52,6 +57,16 @@ async def chat(
     logger.info("✔ User Profile — MBTI: %s | Name: %s", mbti, owner_name)
     logger.info("✔ Pet Profile — Species: %s | Breed: %s | Name: %s", pet_data.get("species"), pet_data.get("breed"), pet_data.get("name"))
 
+    # Step 1: Detect user language
+    user_lang = detect_language(message)
+    logger.info("Detected user language: %s", user_lang)
+
+    # Step 2: Translate to English if necessary
+    translated_message = translate_to_english(message, user_lang)
+    if translated_message != message:
+        logger.info("🔁 Translated message to English: %s", translated_message)
+
+    # Short-term memory
     recent_chats_cursor = chats_collection.find({
         "user_id": user_id,
         "pet_id": pet_id
@@ -64,27 +79,35 @@ async def chat(
             f"[{i}] User: {chat['user_message']}\n    Pet: {chat['pet_response']}"
             for i, chat in enumerate(reversed(recent_chats), 1)
         )
-        logger.info("\n===== MEMORY SNIPPET START =====\n%s\n===== 🧠 MEMORY SNIPPET END =====", formatted_chats)
+        logger.info("\n===== MEMORY SNIPPET START =====\n%s\n===== MEMORY SNIPPET END =====", formatted_chats)
     else:
-        logger.info("ℹNo recent memory found for user/pet.")
+        logger.info("ℹ No recent memory found for user/pet.")
 
     memory_snippet = "\n".join(
         f"User: {chat['user_message']}\nPet: {chat['pet_response']}"
         for chat in reversed(recent_chats)
     )
 
+    # Build prompt using translated message
     prompt = build_pet_prompt(pet_data, mbti, owner_name, memory_snippet=memory_snippet)
-    prompt += f"\n\nUser: {message}\n{pet_data.get('species', 'pet').capitalize()}:"
+    prompt += f"\n\nUser: {translated_message}\n{pet_data.get('species', 'pet').capitalize()}:"
 
     logger.debug("\n--- Prompt Sent to LLM ---\n%s", prompt)
 
+    # Generate response
     response = await generate_response(prompt, use_mock=False)
 
     if response.startswith("[ERROR]"):
         logger.warning("Model returned error: %s", response)
         raise HTTPException(status_code=502, detail="AI response unavailable")
 
-    logger.info("Model Response:\n%s", response.strip())
+    logger.info("Model Response (EN):\n%s", response.strip())
+
+    # Translate response back to user language if needed
+    translated_response = translate_to_user_language(response.strip(), user_lang)
+    if translated_response != response.strip():
+        logger.info("Translated response to %s: %s", user_lang, translated_response)
+
     features = extract_response_features(response)
 
     await chats_collection.insert_one({
@@ -92,9 +115,9 @@ async def chat(
         "pet_id": pet_id,
         "timestamp": datetime.utcnow(),
         "user_message": message,
-        "pet_response": response.strip()
+        "pet_response": translated_response
     })
 
-    logger.info("💾 Chat successfully stored in MongoDB")
+    logger.info("Chat successfully stored in MongoDB")
 
-    return {"response": response.strip(), "features": features}
+    return {"response": translated_response, "features": features}
