@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from app.models.main_schema import get_chat_form, ChatResponse
 from app.utils.prompt_builder import build_pet_prompt
 from app.utils.chat_handler import generate_response
-from app.utils.php_service import get_user_by_id, get_pet_by_id
+from app.utils.php_service import get_user_by_id, get_pet_by_id, get_pet_status_by_id
 from app.utils.extract_response import extract_response_features
 from app.db.connection import chats_collection
 from app.utils.language_translator import (
@@ -38,9 +38,10 @@ async def chat(
     logger.info("\n--- Chat Request Received ---\nUser ID: %s | Pet ID: %s", user_id, pet_id)
 
     try:
-        user_data, pet_data = await asyncio.gather(
+        user_data, pet_data, pet_status_data = await asyncio.gather(
             get_user_by_id(user_id, authorization),
-            get_pet_by_id(pet_id, authorization)
+            get_pet_by_id(pet_id, authorization),
+            get_pet_status_by_id(pet_id, authorization)
         )
     except Exception as e:
         logger.error("Failed to retrieve user or pet data: %s", str(e))
@@ -89,7 +90,7 @@ async def chat(
     )
 
     # Build prompt using translated message
-    prompt = build_pet_prompt(pet_data, mbti, owner_name, memory_snippet=memory_snippet)
+    prompt = build_pet_prompt(pet_data, mbti, owner_name, memory_snippet=memory_snippet, pet_status=pet_status_data) 
     prompt += f"\n\nUser: {translated_message}\n{pet_data.get('species', 'pet').capitalize()}:"
 
     logger.debug("\n--- Prompt Sent to LLM ---\n%s", prompt)

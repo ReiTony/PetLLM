@@ -2,11 +2,11 @@ def build_pet_prompt(
     pet: dict,
     owner_mbti: str,
     owner_name: str,
-    memory_snippet: str = ""
+    memory_snippet: str = "",
+    pet_status: dict = None 
 ) -> str:
-    # Fallback-safe attribute access and consistent name handling
     pet_type = (pet.get("pet_type") or pet.get("species", "pet")).capitalize()
-    name = pet.get("pet_name") or pet.get("name", "Buddy")  # Avoids pet_name defaulting to a wrong field
+    name = pet.get("pet_name") or pet.get("name", "Buddy")
     breed = pet.get("breed", "Unknown Breed")
     age = pet.get("age_group", "adult")
     mood = pet.get("mood", "neutral")
@@ -19,14 +19,67 @@ def build_pet_prompt(
 
     known_cmds_text = ", ".join(known_commands) if known_commands else "None yet"
 
-    # Wrap memory snippet with a clear label if it's present
     if memory_snippet:
         memory_snippet = f"— Memory Snippet —\n{memory_snippet}"
+
+    status_block = ""
+    tone_instructions = ""
+    if pet_status:
+        is_sick = pet_status.get("is_sick") == "1"
+        hibernating = pet_status.get("hibernation_mode") == "1"
+        hunger = float(pet_status.get("hunger_level", "0.0"))
+        energy_lvl = float(pet_status.get("energy_level", "0.0"))
+        health = float(pet_status.get("health_level", "0.0"))
+        stress = float(pet_status.get("stress_level", "0.0"))
+        sickness_type = pet_status.get("sickness_type", "None")
+        sickness_severity = float(pet_status.get("sickness_severity", "0.0"))
+
+        status_block = f"""
+— Pet Status —
+Mood: {pet_status.get("current_mood", "unknown")}
+Hunger: {hunger}
+Happiness: {pet_status.get("happiness_level", "0.0")}
+Health: {health}
+Cleanliness: {pet_status.get("cleanliness_level", "0.0")}
+Energy: {energy_lvl}
+Stress: {stress}
+Sick: {"Yes" if is_sick else "No"} — {sickness_type}
+Severity: {sickness_severity}
+Hibernation Mode: {"On" if hibernating else "Off"}
+""".strip()
+
+        tone_instructions = "\n— Status-Aware Behavior —\n"
+
+        if hibernating:
+            tone_instructions += "- You are in hibernation. You respond sleepily or barely respond.\n"
+        elif is_sick:
+            tone_instructions += f"- You are sick with {sickness_type} (Severity: {sickness_severity}). Act weak, needy, or uncomfortable.\n"
+            if sickness_severity > 70:
+                tone_instructions += "- You feel very bad and need help or comfort.\n"
+        elif health < 40:
+            tone_instructions += "- You feel weak or in pain, but you're trying to be strong.\n"
+
+        if hunger < 30:
+            tone_instructions += "- You're very hungry. Gently ask for food or show low energy.\n"
+        elif hunger < 60:
+            tone_instructions += "- You're a bit hungry and may want treats or food.\n"
+
+        if energy_lvl < 30:
+            tone_instructions += "- You're tired or sluggish. Prefer to rest or cuddle.\n"
+        elif energy_lvl > 70:
+            tone_instructions += "- You're energetic and excited. Ready to play!\n"
+
+        if stress > 70:
+            tone_instructions += "- You're very anxious. Be cautious or seek reassurance.\n"
+        elif stress > 50:
+            tone_instructions += "- You're a bit stressed. Act slightly uneasy or clingy.\n"
 
     return f"""
 {memory_snippet}
 
 You are a virtual {pet_type.lower()} named {name}. You are having a conversation with your owner, {owner_name}.
+
+{status_block}
 
 — {pet_type} Profile —
 Breed: {breed}
@@ -40,6 +93,8 @@ Known Commands: {known_cmds_text}
 — Owner Profile —
 Owner MBTI Personality Type: {owner_mbti}
 Owner Name: {owner_name}
+
+{tone_instructions}
 
 — Response Guidelines —
 You will reply to your owner's latest message using:
