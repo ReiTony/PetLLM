@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import random
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Header
 
@@ -14,11 +15,22 @@ from app.utils.language_translator import (
     translate_to_english,
     translate_to_user_language
 )
+from app.utils.content_moderator import is_flagged_content
 
 router = APIRouter()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Soft warning responses for flagged messages
+SOFT_WARNINGS = [
+    "(confused) {tilt head} <whimper>\nHmm? That didn’t sound right. Let's talk about something fun!",
+    "(anxious) {crouch down} <whimper>\nUmm... I don’t think I understand that. Can we talk about something else?",
+    "(confused) {perk ears} <sniff sniff>\nThat feels weird. Maybe try saying it differently?",
+    "(sleepy) {lie down} <yawn>\nThat’s a bit too strange for me. Let’s cuddle instead.",
+    "(anxious) {sit beside} <whimper>\nI'm not sure I like that. Can we change the topic?",
+    "(sad) {bow head} <whimper>\nThat makes me feel icky. Want to play instead?"
+]
 
 
 async def get_auth_token(authorization: str = Header(...)):
@@ -67,7 +79,26 @@ async def chat(
     if translated_message != message:
         logger.info("Translated message to English: %s", translated_message)
 
-    # Short-term memory
+    # Step 3: Content moderation check
+    if await is_flagged_content(translated_message):
+        logger.warning("[MODERATION] User input flagged by content filter.")
+        soft_warning = random.choice(SOFT_WARNINGS)
+
+        await chats_collection.insert_one({
+            "user_id": user_id,
+            "pet_id": pet_id,
+            "timestamp": datetime.utcnow(),
+            "user_message": message,
+            "pet_response": soft_warning,
+            "flagged": True
+        })
+
+        return {
+            "response": soft_warning,
+            "features": extract_response_features(soft_warning)
+        }
+
+    # Step 4: Short-term memory
     recent_chats_cursor = chats_collection.find({
         "user_id": user_id,
         "pet_id": pet_id
@@ -89,13 +120,13 @@ async def chat(
         for chat in reversed(recent_chats)
     )
 
-    # Build prompt using translated message
-    prompt = build_pet_prompt(pet_data, mbti, owner_name, memory_snippet=memory_snippet, pet_status=pet_status_data) 
+    # Step 5: Build prompt
+    prompt = build_pet_prompt(pet_data, mbti, owner_name, memory_snippet=memory_snippet, pet_status=pet_status_data)
     prompt += f"\n\nUser: {translated_message}\n{pet_data.get('species', 'pet').capitalize()}:"
 
     logger.debug("\n--- Prompt Sent to LLM ---\n%s", prompt)
 
-    # Generate response
+    # Step 6: Generate response
     response = await generate_response(prompt, use_mock=False)
 
     if response.startswith("[ERROR]"):
@@ -104,11 +135,12 @@ async def chat(
 
     logger.info("Model Response (EN):\n%s", response.strip())
 
-    # Translate response back to user language if needed
+    # Step 7: Translate response back to user language if needed
     translated_response = translate_to_user_language(response.strip(), user_lang)
     if translated_response != response.strip():
         logger.info("Translated response to %s: %s", user_lang, translated_response)
 
+    # Step 8: Store chat and return
     features = extract_response_features(response)
 
     await chats_collection.insert_one({

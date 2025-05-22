@@ -3,13 +3,15 @@ from googletrans import Translator
 
 translator = Translator()
 
+ALLOWED_LANGUAGES = {"en", "ko", "ja", "tl"}  # English, Korean, Japanese, Filipino
+
 def detect_language(text: str) -> str:
     try:
-        return detect(text)
+        lang = detect(text)
+        return lang if lang in ALLOWED_LANGUAGES else "en"
     except Exception as e:
         print(f"[LangDetect Error]: {e}")
-        return "en"  
-
+        return "en"
 
 def translate_to_english(text: str, src_lang: str) -> str:
     if src_lang == "en":
@@ -21,7 +23,6 @@ def translate_to_english(text: str, src_lang: str) -> str:
     except Exception as e:
         print(f"[Translation to EN Error]: {e}")
         return text
-
 
 def translate_to_user_language(text: str, target_lang: str) -> str:
     if target_lang == "en":
