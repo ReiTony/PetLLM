@@ -100,7 +100,7 @@ async def chat(
     recent_chats_cursor = chats_collection.find({
         "user_id": user_id,
         "pet_id": pet_id
-    }).sort("timestamp", -1).limit(10)
+    }).sort("timestamp", -1).limit(5)
 
     recent_chats = await recent_chats_cursor.to_list(length=5)
 
