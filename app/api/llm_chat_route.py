@@ -15,14 +15,14 @@ from app.utils.language_translator import (
     translate_to_english,
     translate_to_user_language
 )
-from app.utils.content_moderator import is_flagged_content
+# from ip_features.content_moderator import is_flagged_content  # ⛔ disabled for testing
 
 router = APIRouter()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Soft warning responses for flagged messages
+# Soft warning responses (unused for now since moderation is disabled)
 SOFT_WARNINGS = [
     "(confused) {tilt head} <whimper>\nHmm? That didn’t sound right. Let's talk about something fun!",
     "(anxious) {crouch down} <whimper>\nUmm... I don’t think I understand that. Can we talk about something else?",
@@ -79,24 +79,22 @@ async def chat(
     if translated_message != message:
         logger.info("Translated message to English: %s", translated_message)
 
-    # Step 3: Content moderation check
-    if await is_flagged_content(translated_message):
-        logger.warning("[MODERATION] User input flagged by content filter.")
-        soft_warning = random.choice(SOFT_WARNINGS)
-
-        await chats_collection.insert_one({
-            "user_id": user_id,
-            "pet_id": pet_id,
-            "timestamp": datetime.utcnow(),
-            "user_message": message,
-            "pet_response": soft_warning,
-            "flagged": True
-        })
-
-        return {
-            "response": soft_warning,
-            "features": extract_response_features(soft_warning)
-        }
+    # Step 3: ⛔ Content moderation is temporarily disabled
+    # if await is_flagged_content(translated_message):
+    #     logger.warning("[MODERATION] User input flagged by content filter.")
+    #     soft_warning = random.choice(SOFT_WARNINGS)
+    #     await chats_collection.insert_one({
+    #         "user_id": user_id,
+    #         "pet_id": pet_id,
+    #         "timestamp": datetime.utcnow(),
+    #         "user_message": message,
+    #         "pet_response": soft_warning,
+    #         "flagged": True
+    #     })
+    #     return {
+    #         "response": soft_warning,
+    #         "features": extract_response_features(soft_warning)
+    #     }
 
     # Step 4: Short-term memory
     recent_chats_cursor = chats_collection.find({
@@ -124,7 +122,7 @@ async def chat(
     prompt = build_pet_prompt(pet_data, mbti, owner_name, memory_snippet=memory_snippet, pet_status=pet_status_data)
     prompt += f"\n\nUser: {translated_message}\n{pet_data.get('species', 'pet').capitalize()}:"
 
-    logger.debug("\n--- Prompt Sent to LLM ---\n%s", prompt)
+    logger.info("\n--- Prompt Sent to LLM ---\n%s", prompt)
 
     # Step 6: Generate response
     response = await generate_response(prompt, use_mock=False)
