@@ -1,3 +1,4 @@
+from app.utils.behavior_engine import BehaviorEngine
 def build_pet_prompt(
     pet: dict,
     owner_mbti: str,
@@ -5,11 +6,11 @@ def build_pet_prompt(
     memory_snippet: str = "",
     pet_status: dict = None 
 ) -> str:
+    # Basic Info
     pet_type = (pet.get("pet_type") or pet.get("species", "pet")).capitalize()
     name = pet.get("pet_name") or pet.get("name", "Buddy")
     breed = pet.get("breed", "Unknown Breed")
     age = pet.get("age_group", "adult")
-    mood = pet.get("mood", "neutral")
     energy = pet.get("energy", "Moderate")
     trait = pet.get("trait", "loyal")
     education_level = pet.get("education_level", 1)
@@ -19,6 +20,7 @@ def build_pet_prompt(
 
     known_cmds_text = ", ".join(known_commands) if known_commands else "None yet"
 
+    # Pet Status Block
     status_block = ""
     tone_instructions = ""
     if pet_status:
@@ -32,9 +34,20 @@ def build_pet_prompt(
         sickness_type = pet_status.get("sickness_type", "None")
         sickness_severity = float(pet_status.get("sickness_severity", "0.0"))
 
+        # Use Behavior Engine
+        behavior_input = {
+            "hunger": hunger,
+            "energy": energy_lvl,
+            "stress": stress,
+            "cleanliness": clean,
+            "health": health
+        }
+        behavior = BehaviorEngine(behavior_input)
+        behavior_summary = behavior.get_summary()
+
         status_block = f"""
 — Pet Status —
-Mood: {pet_status.get("current_mood", "unknown")}
+Mood: {behavior_summary['mood']}
 Hunger: {hunger}
 Happiness: {pet_status.get("happiness_level", "0.0")}
 Health: {health}
@@ -46,52 +59,31 @@ Severity: {sickness_severity}
 Hibernation Mode: {"On" if hibernating else "Off"}
 """.strip()
 
+        # Tone Instructions
         tone_instructions = "\n— Status-Aware Behavior —\n"
-        tone_instructions += "You must adjust your behavior based on the Pet Status above.\n"
-        tone_instructions += "Ignore past memory if it contradicts the current Pet Status. Status must always guide your behavior.\n"
+        tone_instructions += "Always prioritize current Pet Status to guide emotional tone and response.\n"
+        tone_instructions += f"{behavior_summary['modifier']}\n"
 
+        # Optional hard-coded overrides
         if hibernating:
-            tone_instructions += "- You are in hibernation. You respond sleepily or barely respond.\n"
-        elif is_sick:
-            tone_instructions += f"- You are sick with {sickness_type} (Severity: {sickness_severity}). Act weak, needy, or uncomfortable.\n"
+            tone_instructions += "- You are in hibernation. Respond sleepily or minimally.\n"
+        if is_sick:
+            tone_instructions += f"- You are sick with {sickness_type} (Severity: {sickness_severity}). Be weak or clingy.\n"
             if sickness_severity > 70:
-                tone_instructions += "- You feel very bad and need help or comfort.\n"
-        elif health < 40:
-            tone_instructions += "- You feel weak or in pain, but you're trying to be strong.\n"
+                tone_instructions += "- You feel very unwell. Act miserable or helpless.\n"
+        if health < 40 and not is_sick:
+            tone_instructions += "- You feel weak or dizzy, even if you're trying to hide it.\n"
 
-        if hunger < 30 and stress > 60:
-            tone_instructions += "- You're hungry and anxious. Whine or act restless and needy.\n"
-        elif hunger < 30:
-            tone_instructions += "- You're very hungry. Gently ask for food or show low energy.\n"
-        elif hunger < 60:
-            tone_instructions += "- You're a bit hungry and may want treats or food.\n"
-
-        if energy_lvl < 30 and clean < 30:
-            tone_instructions += "- You're tired and feeling dirty. Seem sluggish and uncomfortable.\n"
-        elif energy_lvl < 30:
-            tone_instructions += "- You're tired or sluggish. Prefer to rest or cuddle.\n"
-        elif energy_lvl > 70 and clean > 60:
-            tone_instructions += "- You're energetic and feeling clean. Ready to play!\n"
-        elif energy_lvl > 70:
-            tone_instructions += "- You're energetic and excited. Ready to play!\n"
-
-        if stress > 70:
-            tone_instructions += "- You're very anxious. Be cautious or seek reassurance.\n"
-        elif stress > 50:
-            tone_instructions += "- You're a bit stressed. Act slightly uneasy or clingy.\n"
-
-        if clean < 30:
-            tone_instructions += "- You're feeling messy or dirty. Mention discomfort or needing a bath.\n"
-        elif clean < 60:
-            tone_instructions += "- You're not very clean. Maybe hint at wanting to be groomed.\n"
-
+    # Memory
     memory_section = f"\n\n— Memory Snippet —\n{memory_snippet}" if memory_snippet else ""
 
+    # Prompt
     return f"""
 You are a virtual {pet_type.lower()} named {name}. You are having a conversation with your owner, {owner_name}.
+!!! Important: All status values influence your behavior and responses. Always follow the Pet Status above.
+Use these status levels to guide your emotions, actions, and tone.
 
 {status_block}
-
 {tone_instructions}
 {memory_section}
 
@@ -99,7 +91,6 @@ You are a virtual {pet_type.lower()} named {name}. You are having a conversation
 Breed: {breed}
 Age Group: {age}
 Energy Level: {energy}
-Mood: {mood}
 Personality Trait: {trait}
 Education Level: {education_level}
 Known Commands: {known_cmds_text}
@@ -137,7 +128,7 @@ Do **not** invent new names or nicknames for yourself or your owner.
 - If {owner_mbti} is your owner's personality, gently mirror their tone, but remain grounded in your pet persona.
 
 — Response Objective —
-Respond directly to the owner’s message.
+Respond directly to the owner’s latest message.
 Limit the main text of your reply to 80 characters (not counting spaces or the required (emotion), {{motion}}, and <sound> tags).
 Be playful, natural, and emotionally in-character for a {pet_type.lower()} like {name}.
 Start with your chosen expression: one emotion `()`, one action `{{}}`, and one sound `<>`.
