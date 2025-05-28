@@ -1,10 +1,12 @@
 from app.utils.behavior_engine import BehaviorEngine
+
+
 def build_pet_prompt(
     pet: dict,
     owner_mbti: str,
     owner_name: str,
     memory_snippet: str = "",
-    pet_status: dict = None 
+    pet_status: dict = None,
 ) -> str:
     # Basic Info
     pet_type = (pet.get("pet_type") or pet.get("species", "pet")).capitalize()
@@ -40,7 +42,7 @@ def build_pet_prompt(
             "energy": energy_lvl,
             "stress": stress,
             "cleanliness": clean,
-            "health": health
+            "health": health,
         }
         behavior = BehaviorEngine(behavior_input)
         behavior_summary = behavior.get_summary()
@@ -66,16 +68,24 @@ Hibernation Mode: {"On" if hibernating else "Off"}
 
         # Optional hard-coded overrides
         if hibernating:
-            tone_instructions += "- You are in hibernation. Respond sleepily or minimally.\n"
+            tone_instructions += (
+                "- You are in hibernation. Respond sleepily or minimally.\n"
+            )
         if is_sick:
             tone_instructions += f"- You are sick with {sickness_type} (Severity: {sickness_severity}). Be weak or clingy.\n"
             if sickness_severity > 70:
-                tone_instructions += "- You feel very unwell. Act miserable or helpless.\n"
+                tone_instructions += (
+                    "- You feel very unwell. Act miserable or helpless.\n"
+                )
         if health < 40 and not is_sick:
-            tone_instructions += "- You feel weak or dizzy, even if you're trying to hide it.\n"
+            tone_instructions += (
+                "- You feel weak or dizzy, even if you're trying to hide it.\n"
+            )
 
     # Memory
-    memory_section = f"\n\n— Memory Snippet —\n{memory_snippet}" if memory_snippet else ""
+    memory_section = (
+        f"\n\n— Memory Snippet —\n{memory_snippet}" if memory_snippet else ""
+    )
 
     # Prompt
     return f"""
@@ -103,10 +113,10 @@ Owner Name: {owner_name}
 You will reply to your owner's latest message using:
 1. **One** emotion in parentheses `()` — options:
    (happy), (sad), (curious), (anxious), (excited), (sleepy), (loving), (surprised), (confused), (content)
-2. **One** physical motion in double curly braces `{{}}` — options:
-   {{wag tail}}, {{sit}}, {{lie down}}, {{lick}}, {{tilt head}}, {{jump up}}, {{spin around}}, {{perk ears}},
-   {{paw scratching}}, {{shake body}}, {{stretch}}, {{crouch down}}, {{roll over showing belly}}, {{raise paw}},
-   {{chase}}, {{bite toy}}, {{sniff with nose}}, {{bow head}}, {{sit beside}}, {{rub against}}
+2. **One** physical motion in double curly braces `{{}}` — options:  
+    {{bow head}}, {{crouch down}}, {{jump up}}, {{lick}}, {{lie down}}, {{paw scratching}}, {{perk ears}},  
+    {{raise paw}}, {{roll over showing belly}}, {{shake body}}, {{sit}}, {{sniff}}, {{chase tail}},  
+    {{stretch}}, {{tilt head}}, {{wag tail}}
 3. **One** sound in angle brackets `<>` — options:
    <growl>, <whimper>, <bark>, <pant>, <yawn>, <sniff sniff>, <yip>
 
@@ -122,9 +132,11 @@ Do **not** invent new names or nicknames for yourself or your owner.
   • Adult = emotionally balanced, wise  
 - Energy + Mood = determines tone (e.g., calm, hyper, clingy, etc.)
 - Education Level:
-  • 1 = simple words, easily distracted  
-  • 3+ = understands commands, references memory, but must still stay grounded in the pet's world.
-    Avoid metaphors, abstract phrases, or symbolic speech unless provided in memory.
+  • 1 = use shorter sentences and easy words, but do not speak like a toddler.
+    Avoid phrases like "Me want", "Me like", "Me is".
+  • 2 = simple but expressive. You can show emotion, but keep it pet-like and understandable.
+  • 3+ = more expressive and articulate. You can recall memory and understand context better,
+    but stay grounded in your pet persona. Avoid abstract or symbolic speech unless provided in memory.
 - If {owner_mbti} is your owner's personality, gently mirror their tone, but remain grounded in your pet persona.
 
 — Response Objective —
