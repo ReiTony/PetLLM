@@ -1,5 +1,9 @@
 from enum import Enum
 from typing import Dict
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 class Mood(str, Enum):
@@ -12,7 +16,7 @@ class Mood(str, Enum):
 
 
 class BehaviorEngine:
-    def __init__(self, status: Dict[str, int]):
+    def __init__(self, status: Dict[str, float]):
         """
         status = {
             "energy": 85,
@@ -25,21 +29,25 @@ class BehaviorEngine:
 
     def get_primary_mood(self) -> Mood:
         """Determine the dominant mood based on thresholds."""
-        if self.status.get("hunger", 0) < 70:
-            return Mood.HUNGRY
-        if self.status.get("energy", 100) < 30:
-            return Mood.TIRED
-        if self.status.get("stress", 0) > 60:
-            return Mood.STRESSED
-        if self.status.get("cleanliness", 100) < 40:
-            return Mood.DIRTY
-        if (
-            self.status.get("hunger", 0) < 30 and
-            self.status.get("energy", 100) > 60 and
-            self.status.get("stress", 0) < 40 and
-            self.status.get("cleanliness", 100) > 60
-        ):
+        hunger = self.status.get("hunger", 0)
+        energy = self.status.get("energy", 100)
+        stress = self.status.get("stress", 0)
+        cleanliness = self.status.get("cleanliness", 100)
+
+        logger.info(f"[Mood Check] Hunger: {hunger}, Energy: {energy}, Stress: {stress}, Cleanliness: {cleanliness}")
+
+        if hunger > 80 and energy > 60 and stress < 40 and cleanliness > 60:
             return Mood.HAPPY
+
+        if hunger < 30:
+            return Mood.HUNGRY
+        if energy < 30:
+            return Mood.TIRED
+        if stress > 60:
+            return Mood.STRESSED
+        if cleanliness < 40:
+            return Mood.DIRTY
+
         return Mood.NEUTRAL
 
     def get_prompt_modifier(self) -> str:
