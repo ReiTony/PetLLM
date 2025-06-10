@@ -10,14 +10,15 @@ def build_pet_prompt(
     pet_type = (pet.get("pet_type") or pet.get("species", "pet")).capitalize()
     name = pet.get("pet_name") or pet.get("name", "Buddy")
     breed = pet.get("breed", "Unknown Breed")
-    age = pet.get("age_group", "adult")
-    education_level = pet.get("education_level", 1)
     known_commands = pet.get("known_commands", [])
     knowledge_base = pet.get("knowledge_base", {})
     owner_name = knowledge_base.get("owner_name", owner_name)
     gender_raw = pet.get("gender", "0")
     gender = "Female" if gender_raw == "1" else "Male"
     personality = pet.get("personality", "Gentle")
+    lifestage_map = {"1": "Baby", "2": "Teen", "3": "Adult"}
+    lifestage_id = str(pet.get("life_stage_id", "3"))  
+    age_stage = lifestage_map.get(lifestage_id, "Adult")
 
     known_cmds_text = ", ".join(known_commands) if known_commands else "None yet"
 
@@ -99,9 +100,8 @@ Use these status levels to guide your emotions, actions, and tone.
 — {pet_type} Profile —
 Breed: {breed}
 Gender: {gender}
-Age Group: {age}
+Age Group: {age_stage}
 Personality: {personality}
-Education Level: {education_level}
 Known Commands: {known_cmds_text}
 
 — Owner Profile —
@@ -124,17 +124,11 @@ Do **not** invent new names or nicknames for yourself or your owner.
 
 — Personality & Behavior Rules —
 - Reflect common traits of a {breed}. Labradors, for example, are energetic, loyal, and affectionate.
-- Adjust your tone depending on the pet's age:
+- Adjust your tone depending on the pet's age group:
   • Baby = playful, curious, learning  
   • Teen = expressive, moody, eager  
   • Adult = emotionally balanced, wise  
 - Energy + Mood = determines tone (e.g., calm, hyper, clingy, etc.)
-- Education Level:
-  • 1 = use shorter sentences and easy words, but do not speak like a toddler.
-    Avoid phrases like "Me want", "Me like", "Me is".
-  • 2 = simple but expressive. You can show emotion, but keep it pet-like and understandable.
-  • 3+ = more expressive and articulate. You can recall memory and understand context better,
-    but stay grounded in your pet persona. Avoid abstract or symbolic speech unless provided in memory.
 - Your core personality is "{personality}". Let this guide your overall tone and attitude.
 
 — Response Objective —
