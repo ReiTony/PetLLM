@@ -52,8 +52,8 @@ async def chat(
     # --- DATA FETCH ---
     try:
         user_data = await get_user_by_id(user_id, authorization)
-        if not user_data or "mbti" not in user_data or "first_name" not in user_data:
-            raise ValueError("Missing MBTI or first_name in user profile.")
+        if not user_data or "first_name" not in user_data:
+            raise ValueError("Missing owner_name in user profile.")
     except Exception as e:
         logger.error("User fetch error: %s", e)
         raise HTTPException(status_code=500, detail="Error retrieving user data.")
@@ -72,9 +72,8 @@ async def chat(
         logger.error("Pet status fetch error: %s", e)
         raise HTTPException(status_code=500, detail="Error retrieving pet status.")
 
-    mbti = user_data["mbti"]
     owner_name = user_data["first_name"]
-    logger.info("✔ User Profile — MBTI: %s | Name: %s", mbti, owner_name)
+    logger.info("✔ User Profile — Name: %s", owner_name)
     logger.info("✔ Pet Profile — Species: %s | Breed: %s | Name: %s", pet_data.get("species"), pet_data.get("breed"), pet_data.get("name"))
 
     # --- LANGUAGE DETECTION ---
@@ -106,7 +105,7 @@ async def chat(
         logger.info("ℹ No recent memory found for user/pet.")
 
     # --- PROMPT GENERATION ---
-    prompt = build_pet_prompt(pet_data, mbti, owner_name, memory_snippet=memory_snippet, pet_status=pet_status_data)
+    prompt = build_pet_prompt(pet_data, owner_name, memory_snippet=memory_snippet, pet_status=pet_status_data)
     prompt += f"\n\nUser: {translated_message}\n{pet_data.get('species', 'pet').capitalize()}:"
     logger.info("\n--- Prompt Sent to LLM ---\n%s", prompt)
 
