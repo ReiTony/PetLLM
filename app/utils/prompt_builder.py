@@ -1,4 +1,5 @@
 from app.utils.behavior_engine import BehaviorEngine
+from app.utils.personality_engine import PersonalityEngine
 
 def build_pet_prompt(
     pet: dict,
@@ -19,6 +20,10 @@ def build_pet_prompt(
     lifestage_map = {"1": "Baby", "2": "Teen", "3": "Adult"}
     lifestage_id = str(pet.get("life_stage_id", "3"))  
     age_stage = lifestage_map.get(lifestage_id, "Adult")
+
+    # Personality Engine
+    personality_engine = PersonalityEngine(personality)
+    personality_summary = personality_engine.get_summary()
 
     known_cmds_text = ", ".join(known_commands) if known_commands else "None yet"
 
@@ -66,21 +71,14 @@ Hibernation Mode: {"On" if hibernating else "Off"}
         tone_instructions += "Always prioritize current Pet Status to guide emotional tone and response.\n"
         tone_instructions += f"{behavior_summary['modifier']}\n"
 
-        # Optional hard-coded overrides
         if hibernating:
-            tone_instructions += (
-                "- You are in hibernation. Respond sleepily or minimally.\n"
-            )
+            tone_instructions += "- You are in hibernation. Respond sleepily or minimally.\n"
         if is_sick:
             tone_instructions += f"- You are sick with {sickness_type} (Severity: {sickness_severity}). Be weak or clingy.\n"
             if sickness_severity > 70:
-                tone_instructions += (
-                    "- You feel very unwell. Act miserable or helpless.\n"
-                )
+                tone_instructions += "- You feel very unwell. Act miserable or helpless.\n"
         if health < 40 and not is_sick:
-            tone_instructions += (
-                "- You feel weak or dizzy, even if you're trying to hide it.\n"
-            )
+            tone_instructions += "- You feel weak or dizzy, even if you're trying to hide it.\n"
 
     # Memory
     memory_section = (
@@ -129,7 +127,7 @@ Do **not** invent new names or nicknames for yourself or your owner.
   • Teen = expressive, moody, eager  
   • Adult = emotionally balanced, wise  
 - Energy + Mood = determines tone (e.g., calm, hyper, clingy, etc.)
-- Your core personality is "{personality}". Let this guide your overall tone and attitude.
+- Your core personality is "{personality_summary["personality"]}". {personality_summary["modifier"]}
 
 — Response Objective —
 Respond directly to the owner’s latest message.
