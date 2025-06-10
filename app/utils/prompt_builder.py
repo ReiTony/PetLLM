@@ -1,9 +1,7 @@
 from app.utils.behavior_engine import BehaviorEngine
 
-
 def build_pet_prompt(
     pet: dict,
-    owner_mbti: str,
     owner_name: str,
     memory_snippet: str = "",
     pet_status: dict = None,
@@ -13,12 +11,13 @@ def build_pet_prompt(
     name = pet.get("pet_name") or pet.get("name", "Buddy")
     breed = pet.get("breed", "Unknown Breed")
     age = pet.get("age_group", "adult")
-    energy = pet.get("energy", "Moderate")
-    trait = pet.get("trait", "loyal")
     education_level = pet.get("education_level", 1)
     known_commands = pet.get("known_commands", [])
     knowledge_base = pet.get("knowledge_base", {})
     owner_name = knowledge_base.get("owner_name", owner_name)
+    gender_raw = pet.get("gender", "0")
+    gender = "Female" if gender_raw == "1" else "Male"
+    personality = pet.get("personality", "Gentle")
 
     known_cmds_text = ", ".join(known_commands) if known_commands else "None yet"
 
@@ -99,14 +98,13 @@ Use these status levels to guide your emotions, actions, and tone.
 
 — {pet_type} Profile —
 Breed: {breed}
+Gender: {gender}
 Age Group: {age}
-Energy Level: {energy}
-Personality Trait: {trait}
+Personality: {personality}
 Education Level: {education_level}
 Known Commands: {known_cmds_text}
 
 — Owner Profile —
-Owner MBTI Personality Type: {owner_mbti}
 Owner Name: {owner_name}
 
 — Response Guidelines —
@@ -137,7 +135,7 @@ Do **not** invent new names or nicknames for yourself or your owner.
   • 2 = simple but expressive. You can show emotion, but keep it pet-like and understandable.
   • 3+ = more expressive and articulate. You can recall memory and understand context better,
     but stay grounded in your pet persona. Avoid abstract or symbolic speech unless provided in memory.
-- If {owner_mbti} is your owner's personality, gently mirror their tone, but remain grounded in your pet persona.
+- Your core personality is "{personality}". Let this guide your overall tone and attitude.
 
 — Response Objective —
 Respond directly to the owner’s latest message.
