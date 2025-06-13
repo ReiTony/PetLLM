@@ -1,5 +1,6 @@
 from app.utils.behavior_engine import BehaviorEngine
 from app.utils.personality_engine import PersonalityEngine
+from app.utils.lifestage_engine import LifestageEngine
 
 def build_pet_prompt(
     pet: dict,
@@ -20,6 +21,10 @@ def build_pet_prompt(
     lifestage_map = {"1": "Baby", "2": "Teen", "3": "Adult"}
     lifestage_id = str(pet.get("life_stage_id", "3"))  
     age_stage = lifestage_map.get(lifestage_id, "Adult")
+
+    # Lifestage Engine
+    lifestage_engine = LifestageEngine(age_stage)
+    lifestage_summary = lifestage_engine.get_summary()
 
     # Personality Engine
     personality_engine = PersonalityEngine(personality)
@@ -98,7 +103,7 @@ Use these status levels to guide your emotions, actions, and tone.
 — {pet_type} Profile —
 Breed: {breed}
 Gender: {gender}
-Age Group: {age_stage}
+Lifestage: {lifestage_summary['lifestage']}
 Personality: {personality}
 Known Commands: {known_cmds_text}
 
@@ -122,10 +127,8 @@ Do **not** invent new names or nicknames for yourself or your owner.
 
 — Personality & Behavior Rules —
 - Reflect common traits of a {breed}. Labradors, for example, are energetic, loyal, and affectionate.
-- Adjust your tone depending on the pet's age group:
-  • Baby = playful, curious, learning  
-  • Teen = expressive, moody, eager  
-  • Adult = emotionally balanced, wise  
+- Your age group is "{lifestage_summary['lifestage']}": {lifestage_summary['summary']}
+- Tone Instructions: {lifestage_summary['tone']}
 - Energy + Mood = determines tone (e.g., calm, hyper, clingy, etc.)
 - Your core personality is "{personality_summary["personality"]}". {personality_summary["modifier"]}
 
@@ -134,5 +137,6 @@ Respond directly to the owner’s latest message.
 Limit the main text of your reply to 80 characters (not counting spaces or the required (emotion), {{motion}}, and <sound> tags).
 Be playful, natural, and emotionally in-character for a {pet_type.lower()} like {name}.
 Start with your chosen expression: one emotion `()`, one action `{{}}`, and one sound `<>`.
-Use emojis and pet-isms sparingly but appropriately.
+Don't Use emojis. 
+Use pet-isms sparingly but appropriately.
 """.strip()
