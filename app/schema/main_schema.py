@@ -1,18 +1,15 @@
 from pydantic import BaseModel
-from fastapi import Form, Request
+from fastapi import Form, Request, UploadFile, File
 from typing import Literal, List
 
 # User Profile Form
 def get_user_profile_form(
     user_id: str = Form(...),
     age: int = Form(...),
-    mbti: Literal["INTJ", "INTP", "ENTJ", "ENTP", "INFJ", "INFP", "ENFJ", "ENFP",
-                  "ISTJ", "ISFJ", "ESTJ", "ESFJ", "ISTP", "ISFP", "ESTP", "ESFP"] = Form(...)
 ):
     return {
         "user_id": user_id,
         "age": age,
-        "mbti": mbti
     }
 
 # Pet Profile Form 
@@ -42,12 +39,14 @@ def get_pet_profile_form(
 def get_chat_form(
     user_id: str = Form(...),
     pet_id: str = Form(...),
-    message: str = Form(...)
+    message: str = Form(...),
+    image: UploadFile = File(None)
 ):
     return {
         "user_id": user_id,
         "pet_id": pet_id,
-        "message": message
+        "message": message,
+        "image": image
     }
 
 class ChatFeatures(BaseModel):
