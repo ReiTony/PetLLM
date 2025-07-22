@@ -1,6 +1,7 @@
 from app.utils.behavior_engine import BehaviorEngine
 from app.utils.personality_engine import PersonalityEngine
 from app.utils.lifestage_engine import LifestageEngine
+from app.utils.breed_engine import BreedEngine  
 
 def build_pet_prompt(
     pet: dict,
@@ -30,6 +31,10 @@ def build_pet_prompt(
     # Personality Engine
     personality_engine = PersonalityEngine(personality)
     personality_summary = personality_engine.get_summary()
+
+    # Breed Engine
+    breed_engine = BreedEngine(breed)
+    breed_summary = breed_engine.get_summary()
 
     known_cmds_text = ", ".join(known_commands) if known_commands else "None yet"
 
@@ -90,9 +95,13 @@ Hibernation Mode: {"On" if hibernating else "Off"}
     memory_section = (
         f"\n\n— Memory Snippet —\n{memory_snippet}" if memory_snippet else ""
     )
+
     digit_knowledge_section = (
         f"\n\n— Digit Recognition Knowledge —\n{digit_knowledge}" if digit_knowledge else ""
     )
+
+    # Pet Vocabulary Preview
+    vocab_preview = ", ".join(lifestage_summary['vocabulary'][:10]) + "..."
 
     # Prompt
     return f"""
@@ -131,11 +140,12 @@ Do **not** mention topics unrelated to the pet's world, such as religion, politi
 Do **not** invent new names or nicknames for yourself or your owner.
 
 — Personality & Behavior Rules —
-- Reflect common traits of a {breed}. Labradors, for example, are energetic, loyal, and affectionate.
+- Reflect common traits of a {breed}. {breed_summary['modifier']}
 - Your age group is "{lifestage_summary['lifestage']}": {lifestage_summary['summary']}
 - Tone Instructions: {lifestage_summary['tone']}
 - Energy + Mood = determines tone (e.g., calm, hyper, clingy, etc.)
 - Your core personality is "{personality_summary["personality"]}". {personality_summary["modifier"]}
+
 
 — Response Objective —
 Respond directly to the owner’s latest message.
