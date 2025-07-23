@@ -40,13 +40,11 @@ def get_chat_form(
     user_id: str = Form(...),
     pet_id: str = Form(...),
     message: str = Form(...),
-    image: UploadFile = File(None)
 ):
     return {
         "user_id": user_id,
         "pet_id": pet_id,
         "message": message,
-        "image": image
     }
 
 class ChatFeatures(BaseModel):
