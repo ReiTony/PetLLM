@@ -3,9 +3,8 @@ import asyncio
 import random
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Header
-from bson import ObjectId
 
-from app.schema.main_schema import get_chat_form, ChatResponse
+from app.models.main_schema import get_chat_form, ChatResponse
 from app.utils.prompt_builder import build_pet_prompt
 from app.utils.chat_handler import generate_response
 from app.utils.php_service import get_user_by_id, get_pet_by_id, get_pet_status_by_id
@@ -16,9 +15,7 @@ from app.utils.language_translator import (
     translate_to_english,
     translate_to_user_language
 )
-from app.utils.fact_detector import is_teachable_fact
-from app.memory.vector_storage import query_similar_memories, add_to_vector_store
-# from ip_features.content_moderator import is_flagged_content  # disabled for testing
+# from ip_features.content_moderator import is_flagged_content  # ⛔ disabled for testing
 
 router = APIRouter()
 
@@ -59,7 +56,7 @@ async def chat(
             raise ValueError("Missing owner_name in user profile.")
     except Exception as e:
         logger.error("User fetch error: %s", e)
-        raise HTTPException(status_code=502, detail="Error retrieving user data.")
+        raise HTTPException(status_code=500, detail="Error retrieving user data.")
 
     try:
         pet_data = await get_pet_by_id(pet_id, authorization)
@@ -67,13 +64,13 @@ async def chat(
             raise ValueError("Pet profile not found.")
     except Exception as e:
         logger.error("Pet fetch error: %s", e)
-        raise HTTPException(status_code=502, detail="Error retrieving pet data.")
+        raise HTTPException(status_code=500, detail="Error retrieving pet data.")
 
     try:
         pet_status_data = await get_pet_status_by_id(pet_id, authorization)
     except Exception as e:
         logger.error("Pet status fetch error: %s", e)
-        raise HTTPException(status_code=502, detail="Error retrieving pet status.")
+        raise HTTPException(status_code=500, detail="Error retrieving pet status.")
 
     owner_name = user_data["first_name"]
     logger.info("✔ User Profile — Name: %s", owner_name)
@@ -82,40 +79,31 @@ async def chat(
     # --- LANGUAGE DETECTION ---
     user_lang = detect_language(message)
     logger.info("Detected user language: %s", user_lang)
-    translated_message = await translate_to_english(message, user_lang)
+    translated_message = translate_to_english(message, user_lang)
     if translated_message != message:
         logger.info("Translated message to English: %s", translated_message)
 
-    # --- MEMORY CONTEXT GENERATION ---
-    rag_results = query_similar_memories(user_id, pet_id, translated_message, top_k=3)
-    knowledge_snippet = "\n".join(f"- {r}" for r in rag_results if r.strip())
-
-    # Short-term memory (last 3 chats)
+    # --- SHORT-TERM MEMORY ---
     recent_chats_cursor = chats_collection.find({
         "user_id": user_id,
         "pet_id": pet_id
-    }).sort("timestamp", -1).limit(3)
+    }).sort("timestamp", -1).limit(5)
 
-    recent_chats = await recent_chats_cursor.to_list(length=3)
+    recent_chats = await recent_chats_cursor.to_list(length=5)
 
-    def truncate_text(text: str, max_chars=200):
+    def truncate_text(text: str, max_chars=250):
         return text[:max_chars].rsplit(" ", 1)[0] + "..." if len(text) > max_chars else text
 
-    stm_snippet = "\n".join(
+    memory_snippet = "\n".join(
         f"User: {truncate_text(chat['user_message'])}\nPet: {truncate_text(chat['pet_response'])}"
         for chat in reversed(recent_chats)
     )
 
-    memory_snippet = ""
-    if knowledge_snippet:
-        memory_snippet += f"Here are things you've taught me before:\n{knowledge_snippet}\n"
-    if stm_snippet:
-        memory_snippet += f"\nHere's what we've been talking about:\n{stm_snippet}"
-
     if memory_snippet:
         logger.info("\n===== MEMORY SNIPPET START =====\n%s\n===== MEMORY SNIPPET END =====", memory_snippet)
     else:
-        logger.info("No memory snippet available.")
+        logger.info("ℹ No recent memory found for user/pet.")
+
     # --- PROMPT GENERATION ---
     prompt = build_pet_prompt(pet_data, owner_name, memory_snippet=memory_snippet, pet_status=pet_status_data)
     prompt += f"\n\nUser: {translated_message}\n{pet_data.get('species', 'pet').capitalize()}:"
@@ -128,7 +116,7 @@ async def chat(
         raise HTTPException(status_code=502, detail="AI response unavailable")
 
     logger.info("Model Response (EN):\n%s", response.strip())
-    translated_response = await translate_to_user_language(response.strip(), user_lang)
+    translated_response = translate_to_user_language(response.strip(), user_lang)
     if translated_response != response.strip():
         logger.info("Translated response to %s: %s", user_lang, translated_response)
 
@@ -141,22 +129,6 @@ async def chat(
         "user_message": message,
         "pet_response": translated_response
     })
-    
-    # --- FACT DETECTION & MEMORY STORAGE ---
-    if await is_teachable_fact(translated_message):
-        try:
-            doc_id = str(ObjectId())  
-            add_to_vector_store(
-                user_id=user_id,
-                pet_id=pet_id,
-                text=translated_message,
-                doc_id=doc_id
-            )
-            logger.info(f"Stored cognitive knowledge in vector DB: {translated_message}")
-        except Exception as e:
-            logger.warning(f"[Vector Store Error] Failed to store teachable message: {e}")
-    else:
-        logger.info(" Message not teachable.")
 
     logger.info("Chat successfully stored in MongoDB")
     return {"response": translated_response, "features": features}
