@@ -59,7 +59,7 @@ async def chat(
             raise ValueError("Missing owner_name in user profile.")
     except Exception as e:
         logger.error("User fetch error: %s", e)
-        raise HTTPException(status_code=500, detail="Error retrieving user data.")
+        raise HTTPException(status_code=502, detail="Error retrieving user data.")
 
     try:
         pet_data = await get_pet_by_id(pet_id, authorization)
@@ -67,13 +67,13 @@ async def chat(
             raise ValueError("Pet profile not found.")
     except Exception as e:
         logger.error("Pet fetch error: %s", e)
-        raise HTTPException(status_code=500, detail="Error retrieving pet data.")
+        raise HTTPException(status_code=502, detail="Error retrieving pet data.")
 
     try:
         pet_status_data = await get_pet_status_by_id(pet_id, authorization)
     except Exception as e:
         logger.error("Pet status fetch error: %s", e)
-        raise HTTPException(status_code=500, detail="Error retrieving pet status.")
+        raise HTTPException(status_code=502, detail="Error retrieving pet status.")
 
     owner_name = user_data["first_name"]
     logger.info("✔ User Profile — Name: %s", owner_name)
