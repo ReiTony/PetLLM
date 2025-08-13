@@ -1,7 +1,6 @@
-from app.utils.behavior_engine import BehaviorEngine
-from app.utils.personality_engine import PersonalityEngine
-from app.utils.lifestage_engine import LifestageEngine
-
+from app.utils.pet_logic.behavior_engine import BehaviorEngine
+from app.utils.pet_logic.personality_engine import PersonalityEngine
+from app.utils.pet_logic.lifestage_engine import LifestageEngine
 def build_pet_prompt(
     pet: dict,
     owner_name: str,
