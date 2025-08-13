@@ -18,7 +18,7 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- Pydantic Model and Dependencies (No Changes) ---
+# --- Pydantic Model and Dependencies ---
 class ChatForm(BaseModel):
     user_id: int
     pet_id: int
