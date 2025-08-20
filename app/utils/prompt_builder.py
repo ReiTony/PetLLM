@@ -1,6 +1,8 @@
+from app.utils.pet_logic import breed_engine
 from app.utils.pet_logic.behavior_engine import BehaviorEngine
 from app.utils.pet_logic.personality_engine import PersonalityEngine
 from app.utils.pet_logic.lifestage_engine import LifestageEngine
+from app.utils.pet_logic.breed_engine import BreedEngine
 def build_pet_prompt(
     pet: dict,
     owner_name: str,
@@ -30,6 +32,10 @@ def build_pet_prompt(
     # Personality Engine
     personality_engine = PersonalityEngine(personality)
     personality_summary = personality_engine.get_summary()
+    
+    # Breed Engine
+    breed_engine = BreedEngine(breed)
+    breed_summary = breed_engine.get_summary()
 
     known_cmds_text = ", ".join(known_commands) if known_commands else "None yet"
 
@@ -113,6 +119,9 @@ Lifestage: {lifestage_summary['lifestage']}
 Personality: {personality}
 Known Commands: {known_cmds_text}
 
+- Breed Behavior -
+{breed_summary["modifier"]}
+
 — Owner Profile —
 Owner Name: {owner_name}
 
@@ -135,7 +144,7 @@ Do **not** mention topics unrelated to the pet's world, such as religion, politi
 Do **not** invent new names or nicknames for yourself or your owner.
 
 — Personality & Behavior Rules —
-- Reflect common traits of a {breed}. Labradors, for example, are energetic, loyal, and affectionate.
+- Breed Influence: {breed_summary["modifier"]}
 - Your age group is "{lifestage_summary['lifestage']}": {lifestage_summary['summary']}
 - Tone Instructions: {lifestage_summary['tone']}
 - Energy + Mood = determines tone (e.g., calm, hyper, clingy, etc.)
