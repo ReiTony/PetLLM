@@ -24,6 +24,7 @@ async def get_auth_token(authorization: str = Header(...)):
         raise HTTPException(status_code=401, detail="Authorization header missing")
     return authorization
 
+
 # --- Main Chat Route ---
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
@@ -34,7 +35,8 @@ async def chat(
     message: str = Form(...),
     authorization: str = Depends(get_auth_token),
 ):
-    logger.info("\n--- Chat Request Received ---\nUser ID: %s | Pet ID: %s", user_id, pet_id)
+    logger.info("=== [CHAT REQUEST RECEIVED] ===")
+    logger.info("User ID: %s | Pet ID: %s", user_id, pet_id)
     logger.info("Content-Type: %s", request.headers.get("content-type"))
 
     # --- Data Fetching and Profile Management ---
@@ -52,40 +54,39 @@ async def chat(
             raise ValueError("Pet not found.")
 
         pet_status_data = await get_pet_status_by_id(pet_id, authorization)
+
     except Exception as e:
-        logger.error("Data fetching error: %s", e)
+        logger.error("[ERROR] Data fetching failed: %s", e)
         raise HTTPException(status_code=500, detail="Error retrieving core data.")
 
     owner_name = user_profile.get("first_name", "Friend")
     pet_name = pet_data.get("name", "Your Pet")
 
-    logger.info("\n\n--- User Profile Loaded for Request ---")
-    logger.info(f"User ID: {user_profile.get('user_id')}")
-    logger.info(f"Name: {user_profile.get('first_name')}")
+    logger.info("=== [USER PROFILE LOADED] ===")
+    logger.info("User ID: %s", user_profile.get("user_id"))
+    logger.info("Name: %s", user_profile.get("first_name"))
 
-    # Log the learned facts from the biography object
     biography = user_profile.get("biography", {})
     if biography:
-        logger.info("Learned Facts (Biography):")
+        logger.info("Biography Facts:")
         for key, value in biography.items():
-            logger.info(f"  - {key}: {value}")
+            logger.info("  - %s: %s", key, value)
     else:
-        logger.info("Learned Facts (Biography): None yet.")
+        logger.info("Biography Facts: None")
 
-    # Log the static preferences from the preferences object
     preferences = user_profile.get("preferences", {})
     if preferences:
         logger.info("Static Preferences:")
         for key, value in preferences.items():
-            logger.info(f"  - {key}: {value}")
+            logger.info("  - %s: %s", key, value)
     else:
-        logger.info("Static Preferences: None set.")
-    logger.info("-------------------------------------\n\n")
+        logger.info("Static Preferences: None")
+
+    logger.info("================================")
 
     # --- Language and Chat Context ---
     user_lang = message
-
-    logger.info("Adding fact extraction to background tasks for user_id: %s", user_id)
+    logger.info("[INFO] Scheduling fact extraction task for user_id=%s", user_id)
     background_tasks.add_task(extract_and_save_user_facts, user_id, user_lang)
 
     conversation_context = await save_message_and_get_context(
@@ -109,32 +110,32 @@ async def chat(
         biography_snippet=biography,
     )
     prompt += f"\n{pet_name}:"
+
+    logger.info("=== [LLM PROMPT SENT] ===")
+    logger.info("%s", prompt)
+
     llm_json_string = await generate_response(prompt)
-    logger.info("\n\nPrompt sent to LLM:\n%s", prompt)
 
     try:
         response_data = json.loads(llm_json_string)
     except json.JSONDecodeError:
-        logger.error("Failed to decode JSON from LLM service: %s", llm_json_string)
+        logger.error("[ERROR] Malformed JSON from LLM: %s", llm_json_string)
         raise HTTPException(status_code=502, detail="AI service returned malformed data.")
 
-    # Check for upstream error
     if response_data.get("status") == "error":
         error_message = response_data.get("error", {}).get("message", "Unknown AI error")
-        logger.error("LLM Service Error: %s", error_message)
+        logger.error("[ERROR] LLM Service: %s", error_message)
         raise HTTPException(status_code=502, detail=error_message)
 
-    # Extract AI text
     ai_response_text = response_data.get("data", {}).get("response")
     if not ai_response_text:
-        logger.error("AI service response missing 'data.response' field: %s", response_data)
+        logger.error("[ERROR] Missing 'data.response' in LLM output: %s", response_data)
         raise HTTPException(status_code=502, detail="AI service returned an incomplete response.")
 
-    # Remove optional "PetName: " prefix
+    # --- Response Cleaning ---
     prefix_pattern = rf"^{re.escape(pet_name)}\s*:\s*"
     text_without_prefix = re.sub(prefix_pattern, "", ai_response_text, count=1)
 
-    # Strip emojis
     emoji_pattern = re.compile(
         "["
         "\U0001F600-\U0001F64F"  # emoticons
@@ -144,13 +145,17 @@ async def chat(
         "\U00002702-\U000027B0"  # Dingbats
         "\U0001F900-\U0001F9FF"  # Supplemental Symbols and Pictographs
         "\U0001FA70-\U0001FAFF"  # Symbols and Pictographs Extended-A
-        "\u2600-\u26FF"  # Misc Symbols
+        "\u2600-\u26FF"          # Misc Symbols
         "]+",
         flags=re.UNICODE,
     )
     text_without_emojis = emoji_pattern.sub(r"", text_without_prefix)
 
     cleaned_response = text_without_emojis.strip().replace("\n", " ")
+
+    logger.info("=== [AI RESPONSE CLEANED] ===")
+    logger.info("User Query: %s", user_lang)
+    logger.info("AI Response: %s", cleaned_response)
 
     # Save AI response
     await save_message_and_get_context(
@@ -160,9 +165,7 @@ async def chat(
         message=cleaned_response,
     )
 
-    # Extract features & return
+    # Extract features
     features = extract_response_features(cleaned_response)
-    logger.info("\n\nUser query: \n%s", user_lang)
-    logger.info("\nAI Response: \n%s", cleaned_response)
 
     return {"response": cleaned_response, "features": features}
