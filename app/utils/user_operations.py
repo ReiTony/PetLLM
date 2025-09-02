@@ -29,7 +29,6 @@ async def get_or_create_user_profile(user_id: int, user_data_from_php: dict):
             "pet_ids": [], # Can be populated later
             "biography": {}, # IMPORTANT: Start with an empty biography object
             "preferences": {
-                "default_language": "en"
             },
             "metadata": {
                 "createdAt": datetime.utcnow()
