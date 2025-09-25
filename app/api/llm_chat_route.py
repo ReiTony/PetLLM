@@ -107,6 +107,7 @@ async def chat(
         owner_name,
         memory_snippet=history_snippet,
         pet_status=pet_status_data,
+        message = user_lang,
         biography_snippet=biography,
     )
     prompt += f"\n{pet_name}:"
