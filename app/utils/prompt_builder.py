@@ -26,7 +26,7 @@ def build_pet_prompt(
     owner_name: str,
     memory_snippet: str = "",
     pet_status: dict = None,
-    biography_snippet="",
+    biography_snippet: dict = None,
     message: str = ""
 ) -> str:
     # Basic Info
@@ -49,6 +49,21 @@ def build_pet_prompt(
     breed_engine = BreedEngine(breed)
     breed_summary = breed_engine.get_summary()
 
+    # OWNER PROFILE BLOCK
+    
+    if biography_snippet is None:
+        biography_snippet = {}
+        
+    owner_profile_lines = [f"Owner Name: {owner_name}"]
+
+    if biography_snippet.get("age"):
+        owner_profile_lines.append(f"Age: {biography_snippet['age']}")
+    if biography_snippet.get("gender"):
+        owner_profile_lines.append(f"Gender: {biography_snippet['gender']}")
+    if biography_snippet.get("profession"):
+        owner_profile_lines.append(f"Profession: {biography_snippet['profession']}")
+
+    owner_profile_block = "\n".join(owner_profile_lines)
     # Pet Status Block
     status_block = ""
     if pet_status:
@@ -116,7 +131,7 @@ Use the memory below for multiple-turn context if relevant:
 {breed_summary["modifier"]}
 
 — Owner Profile —
-Owner Name: {owner_name}
+{owner_profile_block}
 
 - User Preferences -
 {knowledge_section}\n\n
