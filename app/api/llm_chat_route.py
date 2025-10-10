@@ -2,10 +2,9 @@ import logging
 import json
 import re
 from fastapi import APIRouter, Depends, HTTPException, Header, BackgroundTasks, Form, Request
-from pydantic import BaseModel  
 
 from app.models.main_schema import ChatResponse  
-from app.utils.prompt_builder import build_pet_prompt
+from app.utils.prompt_builder import build_pet_prompt, system_prompt
 from app.utils.chat_handler import generate_response
 from app.utils.extract_response import extract_response_features
 
@@ -102,6 +101,8 @@ async def chat(
     )
 
     # --- LLM Call for Chat Response ---
+    build_system_prompt = system_prompt(pet_data, owner_name)
+    
     prompt = build_pet_prompt(
         pet_data,
         owner_name,
@@ -115,7 +116,7 @@ async def chat(
     logger.info("=== [LLM PROMPT SENT] ===")
     logger.info("%s", prompt)
 
-    llm_json_string = await generate_response(prompt)
+    llm_json_string = await generate_response(build_system_prompt, prompt)
 
     try:
         response_data = json.loads(llm_json_string)
