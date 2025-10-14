@@ -1,7 +1,7 @@
 import httpx
 import logging
 
-API_BASE = "http://3.34.198.113/aipet/api/v1"
+API_BASE = "http://3.34.27.237/aipet/api/v1"
 
 logger = logging.getLogger(__name__)
 
