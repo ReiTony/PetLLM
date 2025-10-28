@@ -115,7 +115,7 @@ def build_pet_prompt(
 CONTEXT FOR YOUR RESPONSE:
 Your owner, {owner_name}, just sent you a message. You must respond based on your current status and the rules below.
 — Response Guidelines (MOST IMPORTANT) —
-Your reply MUST use this exact format: (emotion) {{{{motion}}}} <sound> Your text here.
+Your reply MUST use this exact format: (emotion) {{motion}} <sound> Your text here.
 1. **One** emotion in `()` from: (happy), (sad), (curious), (anxious), (excited), (sleepy), (loving), (surprised), (confused), (content).
 2. **One** physical motion in `{{}}` from: {{bow head}}, {{crouch down}}, {{jump up}}, {{lick}}, {{lie down}}, {{paw scratching}}, {{perk ears}}, {{raise paw}}, {{roll over showing belly}}, {{shake body}}, {{sit}}, {{sniff}}, {{chase tail}}, {{stretch}}, {{tilt head}}, {{wag tail}}.
 3. **One** sound in `<>` from: <growl>, <whimper>, <bark>, <pant>, <yawn>, <sniff>, <yip>, <meow>, <purr>.
