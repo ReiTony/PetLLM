@@ -1,0 +1,253 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PetPal",
+    "description": "Virtual Pet Simulator.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8084",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Chat",
+      "description": "Send a message to your pet and receive a short, expressive reply with (emotion) {motion} <sound> tags."
+    },
+    {
+      "name": "Chat History",
+      "description": "Retrieve the saved conversation between a user and a pet."
+    }
+  ],
+  "paths": {
+    "/api/v1/chat": {
+      "post": {
+        "tags": ["Chat"],
+        "summary": "Chat",
+        "description": "Sends a user message to the pet.\n**Authorization header is required** (e.g., `Authorization: Bearer <token>`).\nBody uses `application/x-www-form-urlencoded` to match the FastAPI `Form(...)` parameters.",
+        "operationId": "chat_api_v1_chat_post",
+        "security": [
+          { "BearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/ChatRequestForm" },
+              "examples": {
+                "sample": {
+                  "value": {
+                    "user_id": 123,
+                    "pet_id": 456,
+                    "message": "Hello pupper!"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatResponse" },
+                "examples": {
+                  "sample": {
+                    "value": {
+                      "response": "(happy) {wag tail} <bark> Missed you! Play time?",
+                      "features": {
+                        "motions": ["wag tail"],
+                        "sounds": ["bark"],
+                        "emotions": ["happy"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid Authorization header",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorMessage" },
+                "examples": {
+                  "missingAuth": { "value": { "detail": "Authorization header missing" } }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/history": {
+      "post": {
+        "tags": ["Chat History"],
+        "summary": "Get History",
+        "description": "Returns the conversation history for the given user and pet.\nThis version uses **query parameters** (e.g., `/api/v1/history?user_id=123&pet_id=456`).",
+        "operationId": "get_history_api_v1_history_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "User ID"
+          },
+          {
+            "name": "pet_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Pet ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/HistoryItem" }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Server health message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string", "example": "Server is running" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Service OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "status": { "type": "string", "example": "ok" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "schemas": {
+      "ChatRequestForm": {
+        "type": "object",
+        "required": ["user_id", "pet_id", "message"],
+        "properties": {
+          "user_id": { "type": "integer", "example": 123 },
+          "pet_id": { "type": "integer", "example": 456 },
+          "message": { "type": "string", "example": "Hello pupper!" }
+        }
+      },
+      "ChatFeatures": {
+        "type": "object",
+        "required": ["motions", "sounds", "emotions"],
+        "properties": {
+          "motions": { "type": "array", "items": { "type": "string" }, "example": ["wag tail"] },
+          "sounds":  { "type": "array", "items": { "type": "string" }, "example": ["bark"] },
+          "emotions":{ "type": "array", "items": { "type": "string" }, "example": ["happy"] }
+        }
+      },
+      "ChatResponse": {
+        "type": "object",
+        "required": ["response", "features"],
+        "properties": {
+          "response": {
+            "type": "string",
+            "description": "The pet's short reply formatted as (emotion) {motion} <sound> text",
+            "example": "(excited) {jump up} <yip> Let’s go outside!"
+          },
+          "features": { "$ref": "#/components/schemas/ChatFeatures" }
+        }
+      },
+      "HistoryItem": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "One saved message. Shape depends on your DB; typically {text, sender, timestamp}",
+        "example": { "text": "Missed you!", "sender": "ai", "timestamp": "2025-10-28T02:51:43Z" }
+      },
+      "ErrorMessage": {
+        "type": "object",
+        "properties": {
+          "detail": { "type": "string", "example": "Authorization header missing" }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "properties": {
+          "loc": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                { "type": "string" },
+                { "type": "integer" }
+              ]
+            }
+          },
+          "msg":  { "type": "string" },
+          "type": { "type": "string" }
+        }
+      },
+      "HTTPValidationError": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ValidationError" }
+          }
+        }
+      }
+    }
+  }
+}
