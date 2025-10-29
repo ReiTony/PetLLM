@@ -1,84 +1,123 @@
 # PetPal — Swagger / OpenAPI Documentation
 
-This document explains how to view and use the API documentation for the PetPal project.
+This document explains how to view, update, and use the **API documentation** for the PetPal project.
 
-Files added
-- `docs/openapi.yaml` — Hand-crafted OpenAPI 3.0.3 specification derived from the codebase.
+---
 
-Quick notes
-- The project is a FastAPI application. When the server is running the interactive docs are automatically available at:
-  - Swagger UI: `http://localhost:8084/docs`
-  - ReDoc: `http://localhost:8084/redoc`
-  - Raw OpenAPI JSON: `http://localhost:8084/openapi.json`
+## 🚀 Quick Notes
 
-How to run (development)
-1. Ensure your environment variables are set (see `.env` / `decouple` usage in code):
-   - `MONGO_URI` (required)
-   - `GROQ_API_KEY` (for the LLM client)
+The project is a **FastAPI** application.  
+When the server is running, you can access documentation through:
 
-2. Start the app (examples below use PowerShell):
+| Type | URL | Description |
+|------|-----|--------------|
+| Swagger UI (interactive) | [http://localhost:8084/docs](http://localhost:8084/docs) | FastAPI’s default interactive documentation |
+| ReDoc (static viewer) | [http://localhost:8084/redoc](http://localhost:8084/redoc) | Clean read-only OpenAPI view |
+| Static Swagger UI | [http://localhost:8084/swagger](http://localhost:8084/swagger) | Custom Swagger UI loading your static YAML |
+| Raw YAML Spec | [http://localhost:8084/spec/openapi.yaml](http://localhost:8084/spec/openapi.yaml) | Raw OpenAPI YAML served statically |
+| Raw JSON Spec | [http://localhost:8084/spec/openapi.json](http://localhost:8084/spec/openapi.json) | Raw OpenAPI JSON served statically |
+
+---
+
+## How to Run (Development)
+
+1. **Set your environment variables** (`.env` or system environment):
+
+   - `MONGO_URI` — MongoDB connection string  
+   - `GROQ_API_KEY` — API key for the LLM client  
+
+2. **Start the app** (examples below use PowerShell):
 
 ```powershell
+# Run via main.py
 python main.py
-# or using uvicorn directly (recommended for dev):
+
+# or directly with Uvicorn (recommended for development)
 uvicorn main:app --host 0.0.0.0 --port 8084
 ```
 
-Viewing Swagger
-- Open a browser and go to `http://localhost:8084/docs` to use Swagger UI and exercise endpoints interactively.
+## 📘 Viewing API Documentation
 
-Static / Offline Swagger UI
-- The project now includes a small helper and mounting so you can serve a static
-  Swagger UI that loads the local `docs/openapi.yaml` at `http://localhost:8084/swagger`.
+1. FastAPI built-in docs
 
-1. Optionally synchronize the `docs/openapi.yaml` with the live app by running:
+   - Swagger UI: http://localhost:8084/docs
+
+   - ReDoc: http://localhost:8084/redoc
+
+2. Static / Offline Swagger UI
+
+   PetPal includes a static Swagger UI page that loads the hand-written spec:
+
+   Open: http://localhost:8084/swagger
+
+   This loads /spec/openapi.yaml, which lives in docs/spec/.
+
+   If you ever want to regenerate the spec automatically from your live FastAPI app:
 
 ```powershell
 python scripts\export_openapi.py
 ```
 
-This imports the `app` from `main.py` and writes `docs/openapi.json` and
-`docs/openapi.yaml` from the app's current `app.openapi()` output.
+   That command will write:
 
-2. Start the app and open:
+   - `docs/spec/openapi.json`
+   - `docs/spec/openapi.yaml`
 
-  - `http://localhost:8084/swagger` — a simple Swagger UI that points at `/spec/openapi.yaml`.
+## Authentication
 
-Notes:
-- The `/swagger` HTML currently loads Swagger UI assets from a CDN for simplicity.
-  If you need fully offline docs, download the `swagger-ui` distribution into
-  `docs/swagger-ui/` and modify the HTML in `main.py` to reference the local files.
+The API currently requires a simple Bearer token for the `/api/v1/chat` endpoint.
+It is validated only for presence, not for content (for now).
 
-Auth
-- The `POST /api/v1/chat` endpoint requires an `Authorization` header. The route code only validates presence of the header, so include a token string in the header. Example header:
+Example header:
 
-  Authorization: Bearer <token>
+```makefile
+Authorization: Bearer <token>
+```
 
-Examples
-- Chat (form fields):
+Swagger UI includes an Authorize 🔒 button to input your token interactively.
+
+## 💬 Example Requests
+
+> Chat (form fields)
+
+Sends a message to the AI pet and receives a short, expressive reply.
 
 ```powershell
-curl -X POST "http://localhost:8084/api/v1/chat" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
-  -H "Accept: application/json" \
-  -F "user_id=123" \
-  -F "pet_id=456" \
+curl -X POST "http://localhost:8084/api/v1/chat" ^
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" ^
+  -H "Accept: application/json" ^
+  -F "user_id=123" ^
+  -F "pet_id=456" ^
   -F "message=Hello pupper!"
 ```
 
-- History (JSON body):
+Response example:
 
-```powershell
-curl -X POST "http://localhost:8084/api/v1/history" \
-  -H "Content-Type: application/json" \
-  -d '{"user_id":123,"pet_id":456}'
+```json
+{
+  "response": "(happy) {wag tail} <bark> Missed you! Play time?",
+  "features": {
+    "motions": ["wag tail"],
+    "sounds": ["bark"],
+    "emotions": ["happy"]
+  }
+}
 ```
 
-Notes & Caveats
-- The OpenAPI file documents the observed behavior and types inferred from the code. If you change parameter types or route signatures, please update `docs/openapi.yaml`.
-- Error responses are documented generically. Specific error payloads may vary (FastAPI uses `{"detail": ...}` by default).
+> History (query parameters)
 
-Next steps (recommended)
-- Keep `docs/openapi.yaml` in sync with code; one approach is to export the running FastAPI `/openapi.json` and use it as a canonical source.
-- Optionally mount the YAML/JSON into a static Swagger UI for offline browsing.
-- Add authentication semantics (scopes, tokens) to `components.securitySchemes` if you implement strict token validation.
+Retrieves past chat messages between a user and a pet.
+
+```powershell
+curl -X POST "http://localhost:8084/api/v1/history?user_id=123&pet_id=456"
+```
+
+Response (truncated):
+
+```json
+[
+  { "sender": "user", "text": "Hi!", "timestamp": "2025-10-28T02:00:00Z" },
+  { "sender": "ai", "text": "(happy) {wag tail} <bark> Hello!", "timestamp": "2025-10-28T02:00:01Z" }
+]
+```
+
